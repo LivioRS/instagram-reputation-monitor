@@ -1,56 +1,177 @@
 generator client {
-    provider = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model InstagramPost {
-  id                   String   @id @default(cuid())
-  empresa              String   @default("PHX Instrumentos")
-  username             String   @default("phxinstrumentos") // Instagram username do perfil
-  postUrl              String   @map("post_url")
-  postId               String   @unique @map("post_id")
-  dataPublicacao       DateTime @map("data_publicacao")
-  legenda              String?  @db.Text
-  tipoConteudo         String   @map("tipo_conteudo") // image, video, carousel
-  curtidas             Int      @default(0)
-  comentarios          Int      @default(0)
-  compartilhamentos    Int      @default(0)
-  saves                Int      @default(0)
-  sentimentoPositivo   Float    @default(0) @map("sentimento_positivo")
-  sentimentoNeutro     Float    @default(0) @map("sentimento_neutro")
-  sentimentoNegativo   Float    @default(0) @map("sentimento_negativo")
-  scoreReputacao       Float    @default(0) @map("score_reputacao")
-  nivelRisco           String   @default("baixo") @map("nivel_risco") // baixo, medio, alto
-  temasPrincipais      String[] @default([]) @map("temas_principais")
-  resumo               String?  @db.Text
-  alertas              String?  @db.Text
-  recomendacoes        String[] @default([])
-  thumbnailUrl         String?  @map("thumbnail_url")
-  alertaResolvido      Boolean  @default(false) @map("alerta_resolvido")
-  statusAlerta         String   @default("pendente") @map("status_alerta") // pendente, em_analise, resolvido
-  notificadoN8n        Boolean  @default(false) @map("notificado_n8n")
-  coletadoEm           DateTime @default(now()) @map("coletado_em")
-  atualizadoEm         DateTime @updatedAt @map("atualizado_em")
+//
+// ENTIDADES DE NEGÓCIO
+//
 
-  @@index([username])
-  @@index([dataPublicacao])
-  @@index([nivelRisco])
-  @@index([scoreReputacao])
-  @@index([statusAlerta])
-  @@map("instagram_posts")
+model Brand {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  description String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  socialProfiles SocialProfile[]
+  reputationSnapshots ReputationSnapshot[]
+
+  @@map("brands")
 }
+
+enum SocialPlatform {
+  instagram
+  x
+  facebook
+  linkedin
+  youtube
+}
+
+model SocialProfile {
+  id            String         @id @default(cuid())
+  brand         Brand          @relation(fields: [brandId], references: [id])
+  brandId       String         @map("brand_id")
+  platform      SocialPlatform
+  username      String
+  displayName   String?        @map("display_name")
+  externalId    String?        @map("external_id") // id da API / scraper
+  url           String?
+  isActive      Boolean        @default(true) @map("is_active")
+  isCompetitor  Boolean        @default(false) @map("is_competitor")
+  followers     Int?           @map("followers")
+  postsCount    Int?           @map("posts_count")
+  lastCollectAt DateTime?      @map("last_collect_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  posts    SocialPost[]
+  comments SocialComment[]
+
+  @@unique([platform, username], name: "social_profile_platform_username_unique")
+  @@index([brandId, isCompetitor])
+  @@map("social_profiles")
+}
+
+model SocialPost {
+  id                 String          @id @default(cuid())
+  profile            SocialProfile   @relation(fields: [profileId], references: [id])
+  profileId          String          @map("profile_id")
+  platform           SocialPlatform
+  externalId         String          @map("external_id") // id do post na plataforma
+  postUrl            String          @map("post_url")
+  publishedAt        DateTime        @map("published_at")
+  contentText        String?         @db.Text @map("content_text")
+  contentType        String          @map("content_type") // image, video, carousel, text, etc.
+
+  likes              Int             @default(0)
+  commentsCount      Int             @default(0) @map("comments_count")
+  shares             Int             @default(0)
+  saves              Int             @default(0)
+  views              Int?            @map("views")
+
+  sentimentPositive  Float           @default(0) @map("sentiment_positive")
+  sentimentNeutral   Float           @default(0) @map("sentiment_neutral")
+  sentimentNegative  Float           @default(0) @map("sentiment_negative")
+  reputationScore    Float           @default(0) @map("reputation_score")
+  riskLevel          String          @default("low") @map("risk_level") // low, medium, high
+
+  mainTopics         String[]        @default([]) @map("main_topics")
+  summary            String?         @db.Text
+  alerts             String?         @db.Text
+  recommendations    String[]        @default([])
+
+  thumbnailUrl       String?         @map("thumbnail_url")
+  alertResolved      Boolean         @default(false) @map("alert_resolved")
+  alertStatus        String          @default("pending") @map("alert_status") // pending, reviewing, resolved
+  notifiedN8n        Boolean         @default(false) @map("notified_n8n")
+
+  collectedAt        DateTime        @default(now()) @map("collected_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  comments           SocialComment[]
+
+  @@unique([platform, externalId])
+  @@index([platform, collectedAt])
+  @@index([riskLevel])
+  @@index([reputationScore])
+  @@index([alertStatus])
+  @@map("social_posts")
+}
+
+model SocialComment {
+  id                 String         @id @default(cuid())
+  post               SocialPost?    @relation(fields: [postId], references: [id])
+  postId             String?        @map("post_id")
+
+  profile            SocialProfile? @relation(fields: [profileId], references: [id])
+  profileId          String?        @map("profile_id")
+
+  platform           SocialPlatform
+  externalId         String?        @map("external_id")
+
+  authorUsername     String?        @map("author_username")
+  authorDisplayName  String?        @map("author_display_name")
+  isFromOwner        Boolean        @default(false) @map("is_from_owner")
+
+  contentText        String         @db.Text @map("content_text")
+  postedAt           DateTime       @map("posted_at")
+
+  sentimentScore     Float          @default(0) @map("sentiment_score") // -1 a 1
+  sentimentLabel     String         @default("neutral") @map("sentiment_label") // positive, neutral, negative
+  tone               String?        // elogio, reclamação, dúvida etc.
+  topics             String[]       @default([])
+
+  aiSummary          String?        @db.Text @map("ai_summary")
+  aiSuggestedReply   String?        @db.Text @map("ai_suggested_reply")
+
+  collectedAt        DateTime       @default(now()) @map("collected_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  @@index([platform, postedAt])
+  @@index([sentimentLabel])
+  @@index([profileId])
+  @@map("social_comments")
+}
+
+model ReputationSnapshot {
+  id             String          @id @default(cuid())
+  brand          Brand           @relation(fields: [brandId], references: [id])
+  brandId        String          @map("brand_id")
+
+  platform       SocialPlatform
+  periodStart    DateTime        @map("period_start")
+  periodEnd      DateTime        @map("period_end")
+
+  avgSentiment   Float           @default(0) @map("avg_sentiment")
+  postsCount     Int             @default(0) @map("posts_count")
+  commentsCount  Int             @default(0) @map("comments_count")
+  alertsCount    Int             @default(0) @map("alerts_count")
+  crisisFlag     Boolean         @default(false) @map("crisis_flag")
+
+  reportJson     String?         @db.Text @map("report_json") // relatório IA em JSON
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  @@index([brandId, platform, periodStart, periodEnd])
+  @@map("reputation_snapshots")
+}
+
+//
+// TABELAS DE SUPORTE (reaproveitadas)
+//
 
 model Configuracao {
   id           String   @id @default(cuid())
   chave        String   @unique @map("chave")
   valor        String?  @db.Text
   tipo         String   @default("string") // string, boolean, number, json
-  categoria    String   @default("geral") // empresa, instagram, claude, telegram, coleta, alertas
+  categoria    String   @default("geral") // empresa, instagram, claude, telegram, coleta, alertas, x, facebook, linkedin, youtube
   descricao    String?
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
@@ -72,12 +193,16 @@ model LogColeta {
   tipoColeta        String   @default("manual") @map("tipo_coleta") // manual, automatica
   duracaoSegundos   Int?     @map("duracao_segundos")
 
+  plataforma        SocialPlatform? @map("plataforma")
+  profileId         String?         @map("profile_id")
+
   @@index([iniciadaEm])
   @@index([status])
   @@map("logs_coleta")
 }
 
 model Profile {
+  // pode ser deprecado depois, mas mantido para compatibilidade
   id              String    @id @default(cuid())
   username        String    @unique
   displayName     String?   @map("display_name")
