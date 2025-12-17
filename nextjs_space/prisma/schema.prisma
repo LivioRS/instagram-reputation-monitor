@@ -1,0 +1,93 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/instagram_reputation_monitor/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model InstagramPost {
+  id                   String   @id @default(cuid())
+  empresa              String   @default("PHX Instrumentos")
+  username             String   @default("phxinstrumentos") // Instagram username do perfil
+  postUrl              String   @map("post_url")
+  postId               String   @unique @map("post_id")
+  dataPublicacao       DateTime @map("data_publicacao")
+  legenda              String?  @db.Text
+  tipoConteudo         String   @map("tipo_conteudo") // image, video, carousel
+  curtidas             Int      @default(0)
+  comentarios          Int      @default(0)
+  compartilhamentos    Int      @default(0)
+  saves                Int      @default(0)
+  sentimentoPositivo   Float    @default(0) @map("sentimento_positivo")
+  sentimentoNeutro     Float    @default(0) @map("sentimento_neutro")
+  sentimentoNegativo   Float    @default(0) @map("sentimento_negativo")
+  scoreReputacao       Float    @default(0) @map("score_reputacao")
+  nivelRisco           String   @default("baixo") @map("nivel_risco") // baixo, medio, alto
+  temasPrincipais      String[] @default([]) @map("temas_principais")
+  resumo               String?  @db.Text
+  alertas              String?  @db.Text
+  recomendacoes        String[] @default([])
+  thumbnailUrl         String?  @map("thumbnail_url")
+  alertaResolvido      Boolean  @default(false) @map("alerta_resolvido")
+  statusAlerta         String   @default("pendente") @map("status_alerta") // pendente, em_analise, resolvido
+  notificadoN8n        Boolean  @default(false) @map("notificado_n8n")
+  coletadoEm           DateTime @default(now()) @map("coletado_em")
+  atualizadoEm         DateTime @updatedAt @map("atualizado_em")
+
+  @@index([username])
+  @@index([dataPublicacao])
+  @@index([nivelRisco])
+  @@index([scoreReputacao])
+  @@index([statusAlerta])
+  @@map("instagram_posts")
+}
+
+model Configuracao {
+  id           String   @id @default(cuid())
+  chave        String   @unique @map("chave")
+  valor        String?  @db.Text
+  tipo         String   @default("string") // string, boolean, number, json
+  categoria    String   @default("geral") // empresa, instagram, claude, telegram, coleta, alertas
+  descricao    String?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([categoria])
+  @@map("configuracoes")
+}
+
+model LogColeta {
+  id                String   @id @default(cuid())
+  iniciadaEm        DateTime @default(now()) @map("iniciada_em")
+  finalizadaEm      DateTime? @map("finalizada_em")
+  status            String   @default("em_andamento") // em_andamento, sucesso, erro
+  totalColetado     Int      @default(0) @map("total_coletado")
+  novosAnalisados   Int      @default(0) @map("novos_analisados")
+  alertasGerados    Int      @default(0) @map("alertas_gerados")
+  erros             String?  @db.Text
+  detalhes          String?  @db.Text
+  tipoColeta        String   @default("manual") @map("tipo_coleta") // manual, automatica
+  duracaoSegundos   Int?     @map("duracao_segundos")
+
+  @@index([iniciadaEm])
+  @@index([status])
+  @@map("logs_coleta")
+}
+
+model Profile {
+  id              String    @id @default(cuid())
+  username        String    @unique
+  displayName     String?   @map("display_name")
+  isActive        Boolean   @default(false) @map("is_active")
+  postsCount      Int       @default(0) @map("posts_count")
+  lastCollectAt   DateTime? @map("last_collect_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("profiles")
+}
