@@ -5,7 +5,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:system": "tsx --require dotenv/config scripts/test-system.ts",
+    "test:api": "tsx --require dotenv/config scripts/test-api.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
