@@ -77,42 +77,51 @@ lib/
 
 ### Exemplo: Coletar Posts do Instagram
 
+**Em uma função async (recomendado para Next.js API Routes):**
+
 ```typescript
 import { SocialService } from '@/lib/services/social-service'
 import { SocialPlatform } from '@/lib/types/social'
 
-// Obter adapter
-const adapter = SocialService.getAdapter(
-  SocialPlatform.INSTAGRAM,
-  process.env.APIFY_API_TOKEN
-)
+async function coletarPosts() {
+  // Obter adapter
+  const adapter = SocialService.getAdapter(
+    SocialPlatform.INSTAGRAM,
+    process.env.APIFY_API_TOKEN
+  )
 
-// Coletar posts
-const rawPosts = await adapter.collectPosts('phxinstrumentos', {
-  limit: 30
-})
+  // Coletar posts
+  const rawPosts = await adapter.collectPosts('phxinstrumentos', {
+    limit: 30
+  })
 
-// Salvar no banco
-const service = new SocialService()
+  // Salvar no banco
+  const service = new SocialService()
 
-// 1. Obter/criar marca
-const brand = await service.getOrCreateBrand('PHX Instrumentos')
+  // 1. Obter/criar marca
+  const brand = await service.getOrCreateBrand('PHX Instrumentos')
 
-// 2. Obter/criar perfil
-const profile = await service.getOrCreateSocialProfile(
-  brand.id,
-  SocialPlatform.INSTAGRAM,
-  'phxinstrumentos'
-)
+  // 2. Obter/criar perfil
+  const profile = await service.getOrCreateSocialProfile(
+    brand.id,
+    SocialPlatform.INSTAGRAM,
+    'phxinstrumentos'
+  )
 
-// 3. Salvar posts
-for (const rawPost of rawPosts) {
-  // Analisar sentimento (usar API existente)
-  const analysis = await analyzePost(rawPost)
-  
-  // Salvar
-  await service.savePost(profile.id, SocialPlatform.INSTAGRAM, rawPost, analysis)
+  // 3. Salvar posts
+  for (const rawPost of rawPosts) {
+    // Analisar sentimento (usar API existente)
+    const analysis = await analyzePost(rawPost)
+    
+    // Salvar
+    await service.savePost(profile.id, SocialPlatform.INSTAGRAM, rawPost, analysis)
+  }
+
+  return rawPosts
 }
+
+// Executar
+coletarPosts().then(posts => console.log(`Coletados ${posts.length} posts`))
 ```
 
 ## 🆕 Adicionar Nova Plataforma

@@ -91,48 +91,59 @@ Deve mostrar:
 
 ### Exemplo: Coletar Posts do Instagram
 
+**Em uma função async (recomendado para Next.js API Routes):**
+
 ```typescript
 import { SocialService } from '@/lib/services/social-service'
 import { SocialPlatform } from '@/lib/types/social'
 
-// 1. Obter adapter
-const adapter = SocialService.getAdapter(
-  SocialPlatform.INSTAGRAM,
-  process.env.APIFY_API_TOKEN
-)
-
-// 2. Coletar posts
-const rawPosts = await adapter.collectPosts('phxinstrumentos', {
-  limit: 30
-})
-
-// 3. Salvar no banco
-const service = new SocialService()
-
-// Obter/criar marca
-const brand = await service.getOrCreateBrand('PHX Instrumentos')
-
-// Obter/criar perfil
-const profile = await service.getOrCreateSocialProfile(
-  brand.id,
-  SocialPlatform.INSTAGRAM,
-  'phxinstrumentos'
-)
-
-// Salvar cada post
-for (const rawPost of rawPosts) {
-  // Analisar (usar API existente)
-  const analysis = await analyzePost(rawPost)
-  
-  // Salvar
-  await service.savePost(
-    profile.id,
+async function coletarPosts() {
+  // 1. Obter adapter
+  const adapter = SocialService.getAdapter(
     SocialPlatform.INSTAGRAM,
-    rawPost,
-    analysis
+    process.env.APIFY_API_TOKEN
   )
+
+  // 2. Coletar posts
+  const rawPosts = await adapter.collectPosts('phxinstrumentos', {
+    limit: 30
+  })
+
+  // 3. Salvar no banco
+  const service = new SocialService()
+
+  // Obter/criar marca
+  const brand = await service.getOrCreateBrand('PHX Instrumentos')
+
+  // Obter/criar perfil
+  const profile = await service.getOrCreateSocialProfile(
+    brand.id,
+    SocialPlatform.INSTAGRAM,
+    'phxinstrumentos'
+  )
+
+  // Salvar cada post
+  for (const rawPost of rawPosts) {
+    // Analisar (usar API existente)
+    const analysis = await analyzePost(rawPost)
+    
+    // Salvar
+    await service.savePost(
+      profile.id,
+      SocialPlatform.INSTAGRAM,
+      rawPost,
+      analysis
+    )
+  }
+
+  return rawPosts
 }
+
+// Executar
+coletarPosts().then(posts => console.log(`Coletados ${posts.length} posts`))
 ```
+
+**Nota:** Se você estiver usando Next.js 13+ com App Router ou um ambiente que suporte ES modules com top-level await, pode usar `await` diretamente no nível superior.
 
 ---
 

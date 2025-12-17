@@ -65,13 +65,7 @@ export class SocialService {
     }
 
     const profile = await prisma.socialProfile.create({
-      update: {
-        displayName: options?.displayName || `@${cleanUsername}`,
-        externalId: options?.externalId,
-        url: options?.url,
-        isCompetitor: options?.isCompetitor || false,
-      },
-      create: {
+      data: {
         brandId,
         platform,
         username: cleanUsername,
