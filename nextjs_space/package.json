@@ -7,6 +7,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:system": "tsx --require dotenv/config scripts/test-system.ts",
+    "test:multi-platform": "tsx --require dotenv/config scripts/test-multi-platform.ts",
     "test:api": "tsx --require dotenv/config scripts/test-api.ts",
     "setup:supabase": "tsx --require dotenv/config scripts/setup-supabase.ts"
   },
