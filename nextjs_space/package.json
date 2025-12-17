@@ -7,7 +7,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:system": "tsx --require dotenv/config scripts/test-system.ts",
-    "test:api": "tsx --require dotenv/config scripts/test-api.ts"
+    "test:api": "tsx --require dotenv/config scripts/test-api.ts",
+    "setup:supabase": "tsx --require dotenv/config scripts/setup-supabase.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
