@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { profileSchema, validateData } from '@/lib/validations'
+import { ApiError, createErrorResponse } from '@/lib/api-error'
 
 export const dynamic = 'force-dynamic'
 
 const MAX_PROFILES = 30
 
-// GET /api/perfis - Lista todos os perfis
+/**
+ * GET /api/perfis
+ * Lista todos os perfis cadastrados
+ */
 export async function GET() {
   try {
     const profiles = await prisma.profile.findMany({
@@ -48,43 +53,40 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Erro ao listar perfis:', error)
+    const errorResponse = createErrorResponse(error, 'Erro ao listar perfis')
     return NextResponse.json(
-      { error: 'Erro ao listar perfis' },
-      { status: 500 }
+      { error: errorResponse.error, code: errorResponse.code },
+      { status: errorResponse.statusCode || 500 }
     )
   }
 }
 
-// POST /api/perfis - Cria novo perfil
+/**
+ * POST /api/perfis
+ * Cria um novo perfil do Instagram
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username } = body
+    const validation = validateData(profileSchema, body)
 
-    if (!username || typeof username !== 'string') {
-      return NextResponse.json(
-        { error: 'Username é obrigatório' },
-        { status: 400 }
-      )
+    if (!validation.success) {
+      throw new ApiError(400, validation.error, 'VALIDATION_ERROR')
     }
+
+    const { username } = validation.data
 
     // Limpar username (remover @ se tiver)
     const cleanUsername = username.replace('@', '').trim().toLowerCase()
 
-    if (!cleanUsername) {
-      return NextResponse.json(
-        { error: 'Username inválido' },
-        { status: 400 }
-      )
+    if (!cleanUsername || cleanUsername.length < 1) {
+      throw new ApiError(400, 'Username inválido', 'INVALID_USERNAME')
     }
 
     // Verificar limite de perfis
     const count = await prisma.profile.count()
     if (count >= MAX_PROFILES) {
-      return NextResponse.json(
-        { error: `Limite de ${MAX_PROFILES} perfis atingido` },
-        { status: 400 }
-      )
+      throw new ApiError(400, `Limite de ${MAX_PROFILES} perfis atingido`, 'MAX_PROFILES_REACHED')
     }
 
     // Verificar se já existe
@@ -93,10 +95,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'Perfil já existe' },
-        { status: 400 }
-      )
+      throw new ApiError(400, 'Perfil já existe', 'PROFILE_EXISTS')
     }
 
     // Criar perfil
@@ -114,10 +113,10 @@ export async function POST(request: NextRequest) {
       profile
     })
   } catch (error) {
-    console.error('Erro ao criar perfil:', error)
+    const errorResponse = createErrorResponse(error, 'Erro ao criar perfil')
     return NextResponse.json(
-      { error: 'Erro ao criar perfil' },
-      { status: 500 }
+      { error: errorResponse.error, code: errorResponse.code },
+      { status: errorResponse.statusCode || 500 }
     )
   }
 }

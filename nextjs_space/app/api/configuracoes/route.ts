@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { configSchema, validateData } from '@/lib/validations'
+import { ApiError, createErrorResponse } from '@/lib/api-error'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +23,10 @@ const DEFAULT_CONFIG = {
   alertasSentimentoMinimo: '40',
 }
 
+/**
+ * GET /api/configuracoes
+ * Retorna todas as configurações do sistema
+ */
 export async function GET() {
   try {
     const configs = await prisma.configuracao.findMany()
@@ -47,11 +53,22 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/configuracoes
+ * Salva ou atualiza configurações do sistema
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    
+    // Validar configurações (permitir parcial)
+    const validation = validateData(configSchema.partial(), body)
+    
+    if (!validation.success) {
+      throw new ApiError(400, validation.error, 'VALIDATION_ERROR')
+    }
 
-    const configEntries = Object.entries(body)
+    const configEntries = Object.entries(validation.data)
 
     for (const [key, value] of configEntries) {
       let tipo = 'string'
@@ -81,7 +98,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Erro ao salvar configurações:', error)
-    return NextResponse.json({ error: 'Erro ao salvar configurações' }, { status: 500 })
+    const errorResponse = createErrorResponse(error, 'Erro ao salvar configurações')
+    return NextResponse.json(
+      { error: errorResponse.error, code: errorResponse.code },
+      { status: errorResponse.statusCode || 500 }
+    )
   }
 }

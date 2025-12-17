@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { analysisRequestSchema, validateData } from '@/lib/validations'
+import { ApiError, createErrorResponse } from '@/lib/api-error'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * POST /api/analise
+ * Analisa um post do Instagram usando IA (Claude)
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { postUrl, legenda, curtidas, comentarios, empresa } = body
+    const validation = validateData(analysisRequestSchema, body)
+
+    if (!validation.success) {
+      throw new ApiError(400, validation.error, 'VALIDATION_ERROR')
+    }
+
+    const { postUrl, legenda, curtidas, comentarios, empresa } = validation.data
 
     // Buscar modelo configurado
     const modelConfig = await prisma.configuracao.findUnique({
@@ -68,7 +80,13 @@ Responda APENAS com o JSON, sem texto adicional.`
     })
 
     if (!response.ok) {
-      throw new Error('Erro ao chamar API de análise')
+      const errorData = await response.json().catch(() => ({}))
+      throw new ApiError(
+        response.status,
+        errorData.error?.message || 'Erro ao chamar API de análise',
+        'ANALYSIS_API_ERROR',
+        errorData
+      )
     }
 
     const data = await response.json()
@@ -93,13 +111,14 @@ Responda APENAS com o JSON, sem texto adicional.`
 
     return NextResponse.json(analysis)
   } catch (error) {
-    console.error('Erro na análise:', error)
+    const errorResponse = createErrorResponse(error, 'Erro ao analisar post')
     return NextResponse.json(
       {
-        error: 'Erro ao analisar post',
-        details: error instanceof Error ? error.message : 'Erro desconhecido',
+        error: errorResponse.error,
+        code: errorResponse.code,
+        details: errorResponse.details,
       },
-      { status: 500 }
+      { status: errorResponse.statusCode || 500 }
     )
   }
 }
